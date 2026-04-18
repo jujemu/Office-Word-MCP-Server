@@ -284,6 +284,42 @@ def register_tools():
             col_index: Position to insert the column (0-based). None = append at the right end.
         """
         return content_tools.add_column_to_table(filename, table_index, data, col_index)
+        
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Merge Table Row Cells",
+        ),
+    )
+    def merge_table_row_cells(filename: str, table_index: int, row_index: int, start_col_index: int, end_col_index: int, text: str = None):
+        """Merge cells in the same row of an existing table.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            row_index: Index of the row containing the cells (0-based)
+            start_col_index: Starting column index to merge (0-based)
+            end_col_index: Ending column index to merge (0-based)
+            text: Optional text to set in the merged cell. If None, contents are concatenated.
+        """
+        return content_tools.merge_table_row_cells(filename, table_index, row_index, start_col_index, end_col_index, text)
+        
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Merge Table Column Cells",
+        ),
+    )
+    def merge_table_column_cells(filename: str, table_index: int, col_index: int, start_row_index: int, end_row_index: int, text: str = None):
+        """Merge cells in the same column of an existing table.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            col_index: Index of the column containing the cells (0-based)
+            start_row_index: Starting row index to merge (0-based)
+            end_row_index: Ending row index to merge (0-based)
+            text: Optional text to set in the merged cell. If None, contents are concatenated.
+        """
+        return content_tools.merge_table_column_cells(filename, table_index, col_index, start_row_index, end_row_index, text)
     
     @mcp.tool(
         annotations=ToolAnnotations(

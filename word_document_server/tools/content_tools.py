@@ -643,3 +643,129 @@ async def add_column_to_table(filename: str, table_index: int, data: List[str],
         return f"Column added at index {actual_index} to table {table_index} in {filename} (now {num_rows} rows x {new_col_count} cols)"
     except Exception as e:
         return f"Failed to add column to table: {str(e)}"
+
+
+async def merge_table_row_cells(filename: str, table_index: int, row_index: int,
+                                start_col_index: int, end_col_index: int,
+                                text: Optional[str] = None) -> str:
+    """Merge cells in the same row of an existing table.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        row_index: Index of the row containing the cells (0-based)
+        start_col_index: Starting column index to merge (0-based)
+        end_col_index: Ending column index to merge (0-based)
+        text: Optional text to set in the merged cell. If None, contents are concatenated.
+    """
+    filename = ensure_docx_extension(filename)
+
+    try:
+        table_index = int(table_index)
+        row_index = int(row_index)
+        start_col_index = int(start_col_index)
+        end_col_index = int(end_col_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: indices must be integers"
+
+    if start_col_index >= end_col_index:
+        return "Invalid span: start_col_index must be less than end_col_index"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables."
+
+        table = doc.tables[table_index]
+        num_rows = len(table.rows)
+        num_cols = len(table.columns)
+
+        if row_index < 0 or row_index >= num_rows:
+            return f"Invalid row_index ({row_index}). Valid range: 0-{num_rows-1}."
+
+        if start_col_index < 0 or end_col_index >= num_cols:
+            return f"Invalid column span ({start_col_index} to {end_col_index}). Valid range: 0-{num_cols-1}."
+
+        cell1 = table.cell(row_index, start_col_index)
+        cell2 = table.cell(row_index, end_col_index)
+        
+        merged_cell = cell1.merge(cell2)
+
+        if text is not None:
+            merged_cell.text = str(text)
+
+        doc.save(filename)
+        return f"Merged row {row_index} cells from col {start_col_index} to {end_col_index} in table {table_index}"
+    except Exception as e:
+        return f"Failed to merge row cells: {str(e)}"
+
+
+async def merge_table_column_cells(filename: str, table_index: int, col_index: int,
+                                   start_row_index: int, end_row_index: int,
+                                   text: Optional[str] = None) -> str:
+    """Merge cells in the same column of an existing table.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        col_index: Index of the column containing the cells (0-based)
+        start_row_index: Starting row index to merge (0-based)
+        end_row_index: Ending row index to merge (0-based)
+        text: Optional text to set in the merged cell. If None, contents are concatenated.
+    """
+    filename = ensure_docx_extension(filename)
+
+    try:
+        table_index = int(table_index)
+        col_index = int(col_index)
+        start_row_index = int(start_row_index)
+        end_row_index = int(end_row_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: indices must be integers"
+
+    if start_row_index >= end_row_index:
+        return "Invalid span: start_row_index must be less than end_row_index"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables."
+
+        table = doc.tables[table_index]
+        num_rows = len(table.rows)
+        num_cols = len(table.columns)
+
+        if col_index < 0 or col_index >= num_cols:
+            return f"Invalid col_index ({col_index}). Valid range: 0-{num_cols-1}."
+
+        if start_row_index < 0 or end_row_index >= num_rows:
+            return f"Invalid row span ({start_row_index} to {end_row_index}). Valid range: 0-{num_rows-1}."
+
+        cell1 = table.cell(start_row_index, col_index)
+        cell2 = table.cell(end_row_index, col_index)
+        
+        merged_cell = cell1.merge(cell2)
+
+        if text is not None:
+            merged_cell.text = str(text)
+
+        doc.save(filename)
+        return f"Merged col {col_index} cells from row {start_row_index} to {end_row_index} in table {table_index}"
+    except Exception as e:
+        return f"Failed to merge column cells: {str(e)}"
