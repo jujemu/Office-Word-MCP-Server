@@ -240,6 +240,10 @@ add_heading(filename, text, level=1, font_name=None, font_size=None,
 add_paragraph(filename, text, style=None, font_name=None, font_size=None,
               bold=None, italic=None, color=None)
 add_table(filename, rows, cols, data=None)
+add_row_to_table(filename, table_index, data, row_index=None)
+add_column_to_table(filename, table_index, data, col_index=None)
+remove_row_from_table(filename, table_index, row_index)
+remove_column_from_table(filename, table_index, col_index)
 add_picture(filename, image_path, width=None)
 add_page_break(filename)
 ```
@@ -300,6 +304,9 @@ highlight_table_header(filename, table_index,
 merge_table_cells(filename, table_index, start_row, start_col, end_row, end_col)
 merge_table_cells_horizontal(filename, table_index, row_index, start_col, end_col)
 merge_table_cells_vertical(filename, table_index, col_index, start_row, end_row)
+merge_table_row_cells(filename, table_index, row_index, start_col_index, end_col_index, text=None)
+merge_table_column_cells(filename, table_index, col_index, start_row_index, end_row_index, text=None)
+unmerge_all_table_cells(filename, table_index)
 
 # Cell alignment tools
 set_table_cell_alignment(filename, table_index, row_index, col_index,
