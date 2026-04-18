@@ -479,3 +479,167 @@ async def replace_paragraph_block_below_header_tool(filename: str, header_text: 
 async def replace_block_between_manual_anchors_tool(filename: str, start_anchor_text: str, new_paragraphs: list, end_anchor_text: str = None, match_fn=None, new_paragraph_style: str = None) -> str:
     """Replace all content between start_anchor_text and end_anchor_text (or next logical header if not provided)."""
     return replace_block_between_manual_anchors(filename, start_anchor_text, new_paragraphs, end_anchor_text, match_fn, new_paragraph_style)
+
+
+async def add_row_to_table(filename: str, table_index: int, data: List[str],
+                           row_index: Optional[int] = None) -> str:
+    """Add a row to an existing table in a Word document.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        data: List of cell values for the new row (must match column count)
+        row_index: Position to insert the row (0-based). None = append at the end.
+    """
+    filename = ensure_docx_extension(filename)
+
+    # Ensure numeric parameters are the correct type
+    try:
+        table_index = int(table_index)
+        if row_index is not None:
+            row_index = int(row_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: table_index and row_index must be integers"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    # Check if file is writeable
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+
+        # Validate table index
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables (0-{len(doc.tables)-1})."
+
+        table = doc.tables[table_index]
+        num_cols = len(table.columns)
+        num_rows = len(table.rows)
+
+        # Validate data length matches column count
+        if len(data) != num_cols:
+            return f"Data length ({len(data)}) does not match table column count ({num_cols})."
+
+        # Validate row_index range
+        if row_index is not None and (row_index < 0 or row_index > num_rows):
+            return f"Invalid row_index ({row_index}). Valid range: 0-{num_rows} (0=before first row, {num_rows}=after last row)."
+
+        if row_index is None or row_index == num_rows:
+            # Append at the end
+            new_row = table.add_row()
+            for j, cell_text in enumerate(data):
+                new_row.cells[j].text = str(cell_text)
+            actual_index = num_rows
+        else:
+            # Insert at specific position using XML manipulation
+            from docx.oxml import OxmlElement
+            from docx.oxml.ns import qn
+            from copy import deepcopy
+
+            # Create a new row by adding and then moving it
+            new_row = table.add_row()
+            for j, cell_text in enumerate(data):
+                new_row.cells[j].text = str(cell_text)
+
+            # Move the new row XML element to the desired position
+            tbl = table._tbl
+            tr_new = new_row._tr
+            tbl.remove(tr_new)
+
+            # Get the reference row to insert before
+            tr_ref = table.rows[row_index]._tr
+            tbl.insert(tbl.index(tr_ref), tr_new)
+            actual_index = row_index
+
+        doc.save(filename)
+        new_row_count = len(table.rows)
+        return f"Row added at index {actual_index} to table {table_index} in {filename} (now {new_row_count} rows x {num_cols} cols)"
+    except Exception as e:
+        return f"Failed to add row to table: {str(e)}"
+
+
+async def add_column_to_table(filename: str, table_index: int, data: List[str],
+                              col_index: Optional[int] = None) -> str:
+    """Add a column to an existing table in a Word document.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        data: List of cell values for the new column (must match row count)
+        col_index: Position to insert the column (0-based). None = append at the right end.
+    """
+    filename = ensure_docx_extension(filename)
+
+    # Ensure numeric parameters are the correct type
+    try:
+        table_index = int(table_index)
+        if col_index is not None:
+            col_index = int(col_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: table_index and col_index must be integers"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    # Check if file is writeable
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+
+        # Validate table index
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables (0-{len(doc.tables)-1})."
+
+        table = doc.tables[table_index]
+        num_rows = len(table.rows)
+        num_cols = len(table.columns)
+
+        # Validate data length matches row count
+        if len(data) != num_rows:
+            return f"Data length ({len(data)}) does not match table row count ({num_rows})."
+
+        # Validate col_index range
+        if col_index is not None and (col_index < 0 or col_index > num_cols):
+            return f"Invalid col_index ({col_index}). Valid range: 0-{num_cols} (0=before first column, {num_cols}=after last column)."
+
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+
+        if col_index is None or col_index == num_cols:
+            # Append at the right end
+            table.add_column(Inches(1))  # Add column with default width
+            for i, row in enumerate(table.rows):
+                row.cells[num_cols].text = str(data[i])
+            actual_index = num_cols
+        else:
+            # Insert at specific position using XML manipulation
+            for i, row in enumerate(table.rows):
+                tr = row._tr
+                # Create new cell element
+                new_tc = OxmlElement('w:tc')
+                # Add paragraph with text
+                p = OxmlElement('w:p')
+                r = OxmlElement('w:r')
+                t = OxmlElement('w:t')
+                t.text = str(data[i])
+                r.append(t)
+                p.append(r)
+                new_tc.append(p)
+
+                # Insert before the reference cell
+                ref_tc = row.cells[col_index]._tc
+                tr.insert(tr.index(ref_tc), new_tc)
+            actual_index = col_index
+
+        doc.save(filename)
+        new_col_count = len(table.columns)
+        return f"Column added at index {actual_index} to table {table_index} in {filename} (now {num_rows} rows x {new_col_count} cols)"
+    except Exception as e:
+        return f"Failed to add column to table: {str(e)}"

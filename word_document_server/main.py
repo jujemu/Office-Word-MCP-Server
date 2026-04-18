@@ -255,6 +255,38 @@ def register_tools():
     
     @mcp.tool(
         annotations=ToolAnnotations(
+            title="Add Row to Table",
+        ),
+    )
+    def add_row_to_table(filename: str, table_index: int, data: list[str], row_index: int = None):
+        """Add a row to an existing table in a Word document.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            data: List of cell values for the new row (must match column count)
+            row_index: Position to insert the row (0-based). None = append at the end.
+        """
+        return content_tools.add_row_to_table(filename, table_index, data, row_index)
+    
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Add Column to Table",
+        ),
+    )
+    def add_column_to_table(filename: str, table_index: int, data: list[str], col_index: int = None):
+        """Add a column to an existing table in a Word document.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            data: List of cell values for the new column (must match row count)
+            col_index: Position to insert the column (0-based). None = append at the right end.
+        """
+        return content_tools.add_column_to_table(filename, table_index, data, col_index)
+    
+    @mcp.tool(
+        annotations=ToolAnnotations(
             title="Add Page Break",
         ),
     )

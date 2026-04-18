@@ -16,7 +16,7 @@ from word_document_server.tools.document_tools import (
 from word_document_server.tools.content_tools import (
     add_heading, add_paragraph, add_table, add_picture,
     add_page_break, add_table_of_contents, delete_paragraph,
-    search_and_replace
+    search_and_replace, add_row_to_table, add_column_to_table
 )
 
 # Format tools
