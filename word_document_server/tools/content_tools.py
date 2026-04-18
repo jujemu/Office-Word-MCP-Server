@@ -769,3 +769,169 @@ async def merge_table_column_cells(filename: str, table_index: int, col_index: i
         return f"Merged col {col_index} cells from row {start_row_index} to {end_row_index} in table {table_index}"
     except Exception as e:
         return f"Failed to merge column cells: {str(e)}"
+
+
+async def remove_row_from_table(filename: str, table_index: int, row_index: int) -> str:
+    """Remove a row from an existing table in a Word document.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        row_index: Index of the row to remove (0-based)
+    """
+    filename = ensure_docx_extension(filename)
+
+    try:
+        table_index = int(table_index)
+        row_index = int(row_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: indices must be integers"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables."
+
+        table = doc.tables[table_index]
+        num_rows = len(table.rows)
+
+        if row_index < 0 or row_index >= num_rows:
+            return f"Invalid row_index ({row_index}). Valid range: 0-{num_rows-1}."
+
+        tr = table.rows[row_index]._tr
+        table._tbl.remove(tr)
+
+        doc.save(filename)
+        return f"Removed row {row_index} from table {table_index}. Remaining rows: {num_rows - 1}"
+    except Exception as e:
+        return f"Failed to remove row from table: {str(e)}"
+
+
+async def remove_column_from_table(filename: str, table_index: int, col_index: int) -> str:
+    """Remove a column from an existing table in a Word document.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+        col_index: Index of the column to remove (0-based)
+    """
+    filename = ensure_docx_extension(filename)
+
+    try:
+        table_index = int(table_index)
+        col_index = int(col_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: indices must be integers"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+        from docx.oxml.ns import qn
+
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables."
+
+        table = doc.tables[table_index]
+        num_cols = len(table.columns)
+
+        if col_index < 0 or col_index >= num_cols:
+            return f"Invalid col_index ({col_index}). Valid range: 0-{num_cols-1}."
+
+        for row in table.rows:
+            cells = row.cells
+            if col_index < len(cells):
+                tc = cells[col_index]._tc
+                try:
+                    row._tr.remove(tc)
+                except ValueError:
+                    # In case of horizontal spans, this _tc might have been removed already in a previous row check
+                    pass
+
+        # Cleanup <w:gridCol> if exists
+        tblGrid = table._tbl.tblGrid
+        if tblGrid is not None:
+            gridCols = tblGrid.findall(qn('w:gridCol'))
+            if len(gridCols) > col_index:
+                tblGrid.remove(gridCols[col_index])
+
+        doc.save(filename)
+        return f"Removed column {col_index} from table {table_index}. Remaining cols: {num_cols - 1}"
+    except Exception as e:
+        return f"Failed to remove column from table: {str(e)}"
+
+
+async def unmerge_all_table_cells(filename: str, table_index: int) -> str:
+    """Unmerge all horizontally and vertically merged cells in an existing table.
+
+    Args:
+        filename: Path to the Word document
+        table_index: Index of the table (0-based)
+    """
+    filename = ensure_docx_extension(filename)
+
+    try:
+        table_index = int(table_index)
+    except (ValueError, TypeError):
+        return "Invalid parameter: indices must be integers"
+
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}. Consider creating a copy first or creating a new document."
+
+    try:
+        doc = Document(filename)
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+
+        if table_index < 0 or table_index >= len(doc.tables):
+            return f"Invalid table_index. Document has {len(doc.tables)} tables."
+
+        table = doc.tables[table_index]
+        changes_made = 0
+
+        for row in table.rows:
+            tr = row._tr
+            tcs = tr.findall(qn('w:tc'))
+            
+            for tc in tcs:
+                tcPr = tc.tcPr
+                if tcPr is not None:
+                    # Fix horizontal merges (gridSpan)
+                    gridSpan = tcPr.gridSpan
+                    if gridSpan is not None:
+                        span_val = gridSpan.val
+                        tcPr.remove(gridSpan)
+                        changes_made += 1
+                        # Create empty cells to restore the row grid
+                        for _ in range(span_val - 1):
+                            new_tc = OxmlElement('w:tc')
+                            new_tc.append(OxmlElement('w:p'))
+                            tc.addnext(new_tc)
+                    
+                    # Fix vertical merges (vMerge)
+                    vMerge = tcPr.vMerge
+                    if vMerge is not None:
+                        tcPr.remove(vMerge)
+                        changes_made += 1
+
+        doc.save(filename)
+        return f"Unmerged all cells in table {table_index}. Processed {changes_made} merge tags."
+    except Exception as e:
+        return f"Failed to unmerge table cells: {str(e)}"

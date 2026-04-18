@@ -320,6 +320,50 @@ def register_tools():
             text: Optional text to set in the merged cell. If None, contents are concatenated.
         """
         return content_tools.merge_table_column_cells(filename, table_index, col_index, start_row_index, end_row_index, text)
+        
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Remove Row from Table",
+        ),
+    )
+    def remove_row_from_table(filename: str, table_index: int, row_index: int):
+        """Remove a row from an existing table in a Word document.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            row_index: Index of the row to remove (0-based)
+        """
+        return content_tools.remove_row_from_table(filename, table_index, row_index)
+        
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Remove Column from Table",
+        ),
+    )
+    def remove_column_from_table(filename: str, table_index: int, col_index: int):
+        """Remove a column from an existing table in a Word document.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+            col_index: Index of the column to remove (0-based)
+        """
+        return content_tools.remove_column_from_table(filename, table_index, col_index)
+        
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Unmerge All Table Cells",
+        ),
+    )
+    def unmerge_all_table_cells(filename: str, table_index: int):
+        """Unmerge all horizontally and vertically merged cells in an existing table.
+        
+        Args:
+            filename: Path to Word document
+            table_index: Index of the table (0-based)
+        """
+        return content_tools.unmerge_all_table_cells(filename, table_index)
     
     @mcp.tool(
         annotations=ToolAnnotations(
