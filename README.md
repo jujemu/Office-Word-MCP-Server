@@ -97,6 +97,13 @@ The server features a modular architecture that separates concerns into core fun
 - Flexible padding units with support for points and percentage-based measurements
 - Clear, readable table presentation with proper alignment and spacing
 
+### Unified Content Management
+
+- Sequential management of block-level elements (paragraphs and tables) in their actual document order
+- Unified reading, modification, and deletion by absolute document index
+- Single-call content and formatting updates for paragraphs and tables
+- Integrated font, size, bold, italic, and color controls for unified blocks
+
 ### Document Protection
 
 - Add password protection to documents
@@ -275,6 +282,20 @@ insert_numbered_list_near_text(filename, target_text=None, list_items=None,
 get_document_text(filename)
 get_paragraph_text_from_document(filename, paragraph_index)
 find_text_in_document(filename, text_to_find, match_case=True, whole_word=False)
+```
+
+### Unified Block Tools (Paragraphs and Tables)
+
+```python
+# Get all blocks in their actual document order
+get_document_blocks(filename)
+
+# Read, modify, or delete blocks by their absolute document index
+read_document_block(filename, index)
+modify_document_block(filename, index, paragraph_text=None, table_data=None, 
+                      style=None, font_name=None, font_size=None, 
+                      bold=None, italic=None, color=None)
+delete_document_block(filename, index)
 ```
 
 ### Text Formatting
