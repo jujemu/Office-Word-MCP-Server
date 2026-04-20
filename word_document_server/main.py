@@ -803,7 +803,52 @@ def register_tools():
         return format_tools.set_table_cell_padding(filename, table_index, row_index, col_index,
                                                    top, bottom, left, right, unit)
 
+    # Unified Block Tools
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Get Document Blocks",
+            readOnlyHint=True,
+        ),
+    )
+    def get_document_blocks(filename: str):
+        """Get all block level elements (paragraphs and tables) sequentially."""
+        return content_tools.get_document_blocks(filename)
 
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Read Document Block",
+            readOnlyHint=True,
+        ),
+    )
+    def read_document_block(filename: str, index: int):
+        """Read full details of a specific block by its absolute index."""
+        return content_tools.read_document_block(filename, index)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Delete Document Block",
+            destructiveHint=True,
+        ),
+    )
+    def delete_document_block(filename: str, index: int):
+        """Delete a document block (paragraph or table) by its absolute index."""
+        return content_tools.delete_document_block(filename, index)
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Modify Document Block",
+            destructiveHint=True,
+        ),
+    )
+    def modify_document_block(filename: str, index: int, paragraph_text: str = None, 
+                              table_data: list[list[str]] = None, style: str = None, 
+                              font_name: str = None, font_size: int = None, 
+                              bold: bool = None, italic: bool = None, color: str = None):
+        """Modify the block at the specified absolute index (text/data and formatting)."""
+        return content_tools.modify_document_block(
+            filename, index, paragraph_text, table_data, style, 
+            font_name, font_size, bold, italic, color
+        )
 
 def run_server():
     """Run the Word Document MCP Server with configurable transport."""

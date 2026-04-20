@@ -935,3 +935,150 @@ async def unmerge_all_table_cells(filename: str, table_index: int) -> str:
         return f"Unmerged all cells in table {table_index}. Processed {changes_made} merge tags."
     except Exception as e:
         return f"Failed to unmerge table cells: {str(e)}"
+
+# --- Unified Block Tools ---
+from word_document_server.utils.document_utils import iter_block_items
+
+async def get_document_blocks(filename: str) -> str:
+    """Get all block level elements sequentially."""
+    import json
+    filename = ensure_docx_extension(filename)
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    try:
+        doc = Document(filename)
+        blocks = []
+        for i, block in enumerate(iter_block_items(doc)):
+            if block.__class__.__name__ == 'Paragraph':
+                blocks.append({
+                    "index": i,
+                    "type": "paragraph",
+                    "preview": block.text[:100] + ("..." if len(block.text) > 100 else ""),
+                    "style": block.style.name if block.style else "Normal"
+                })
+            elif block.__class__.__name__ == 'Table':
+                blocks.append({
+                    "index": i,
+                    "type": "table",
+                    "rows": len(block.rows),
+                    "columns": len(block.columns) if block.rows else 0
+                })
+        return json.dumps(blocks, indent=2)
+    except Exception as e:
+        return f"Failed to get document blocks: {str(e)}"
+
+async def read_document_block(filename: str, index: int) -> str:
+    """Read full details of a specific block by index."""
+    import json
+    filename = ensure_docx_extension(filename)
+    if not os.path.exists(filename):
+        return f"Document {filename} does not exist"
+
+    try:
+        doc = Document(filename)
+        blocks = list(iter_block_items(doc))
+        if index < 0 or index >= len(blocks):
+            return f"Invalid index. Document has {len(blocks)} blocks (0-{len(blocks)-1})."
+
+        block = blocks[index]
+        if block.__class__.__name__ == 'Paragraph':
+            return json.dumps({
+                "type": "paragraph",
+                "text": block.text,
+                "style": block.style.name if block.style else "Normal"
+            }, indent=2)
+        elif block.__class__.__name__ == 'Table':
+            data = []
+            for row in block.rows:
+                row_data = [cell.text for cell in row.cells]
+                data.append(row_data)
+            return json.dumps({
+                "type": "table",
+                "style": block.style.name if block.style else "Normal",
+                "data": data
+            }, indent=2)
+    except Exception as e:
+        return f"Failed to read block: {str(e)}"
+
+async def delete_document_block(filename: str, index: int) -> str:
+    """Delete a document block by index."""
+    filename = ensure_docx_extension(filename)
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}"
+
+    try:
+        doc = Document(filename)
+        blocks = list(iter_block_items(doc))
+        if index < 0 or index >= len(blocks):
+            return f"Invalid index. Document has {len(blocks)} blocks."
+
+        block = blocks[index]
+        if block.__class__.__name__ == 'Paragraph':
+            p = block._p
+            p.getparent().remove(p)
+        elif block.__class__.__name__ == 'Table':
+            tbl = block._tbl
+            tbl.getparent().remove(tbl)
+
+        doc.save(filename)
+        return f"Successfully deleted block at index {index}."
+    except Exception as e:
+        return f"Failed to delete block: {str(e)}"
+
+async def modify_document_block(filename: str, index: int, paragraph_text=None, table_data=None, style=None, font_name=None, font_size=None, bold=None, italic=None, color=None) -> str:
+    """Modify the block at the specified absolute index."""
+    filename = ensure_docx_extension(filename)
+    is_writeable, error = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error}"
+
+    try:
+        doc = Document(filename)
+        blocks = list(iter_block_items(doc))
+        if index < 0 or index >= len(blocks):
+            return f"Invalid index. Document has {len(blocks)} blocks."
+
+        block = blocks[index]
+        if block.__class__.__name__ == 'Paragraph':
+            if paragraph_text is not None:
+                block.text = paragraph_text
+            if style is not None:
+                try:
+                    block.style = style
+                except KeyError:
+                    pass
+            if any([font_name, font_size, bold is not None, italic is not None, color]):
+                from docx.shared import Pt, RGBColor
+                for run in block.runs:
+                    if font_name: run.font.name = font_name
+                    if font_size: run.font.size = Pt(font_size)
+                    if bold is not None: run.font.bold = bold
+                    if italic is not None: run.font.italic = italic
+                    if color: 
+                        run.font.color.rgb = RGBColor.from_string(color.lstrip('#'))
+
+            doc.save(filename)
+            return f"Successfully modified paragraph at index {index}."
+
+        elif block.__class__.__name__ == 'Table':
+            if table_data is not None:
+                for r_idx, row_data in enumerate(table_data):
+                    if r_idx < len(block.rows):
+                        for c_idx, cell_text in enumerate(row_data):
+                            if c_idx < len(block.columns):
+                                block.cell(r_idx, c_idx).text = str(cell_text)
+
+            if style is not None:
+                try:
+                    block.style = style
+                except KeyError:
+                    pass
+
+            doc.save(filename)
+            return f"Successfully modified table at index {index}."
+
+    except Exception as e:
+        return f"Failed to modify block: {str(e)}"
+

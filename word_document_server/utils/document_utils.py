@@ -8,6 +8,28 @@ from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from docx.document import Document as _Document
+from docx.table import _Cell, Table
+from docx.text.paragraph import Paragraph
+
+def iter_block_items(parent):
+    """
+    Yield each paragraph and table child within *parent*, in document order.
+    Each returned value is an instance of either Table or Paragraph.
+    """
+    if isinstance(parent, _Document):
+        parent_elm = parent.element.body
+    elif isinstance(parent, _Cell):
+        parent_elm = parent._tc
+    else:
+        raise ValueError("Invalid parent for iter_block_items")
+
+    for child in parent_elm.iterchildren():
+        if isinstance(child, CT_P):
+            yield Paragraph(child, parent)
+        elif isinstance(child, CT_Tbl):
+            yield Table(child, parent)
+
 
 
 def get_document_properties(doc_path: str) -> Dict[str, Any]:
