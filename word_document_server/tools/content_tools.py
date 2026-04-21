@@ -1082,3 +1082,73 @@ async def modify_document_block(filename: str, index: int, paragraph_text=None, 
     except Exception as e:
         return f"Failed to modify block: {str(e)}"
 
+
+
+async def duplicate_document_block(filename: str, source_index: int, target_index: int = None, table_data: list = None) -> str:
+    """Duplicate a block (paragraph or table) and optionally fill it with new data.
+    
+    Args:
+        filename: Path to the Word document
+        source_index: Index of the block to duplicate
+        target_index: Index where to insert the duplicated block. If None, appends to the end.
+        table_data: If the block is a table, a 2D array of strings to fill the duplicated table.
+    """
+    import copy
+    from docx import Document
+    from docx.document import Document as DocumentClass
+    from docx.text.paragraph import Paragraph
+    from docx.table import Table
+    
+    filename = ensure_docx_extension(filename)
+    is_writeable, error_message = check_file_writeable(filename)
+    if not is_writeable:
+        return f"Cannot modify document: {error_message}"
+
+    try:
+        doc = Document(filename)
+        blocks = list(iter_block_items(doc))
+        if source_index < 0 or source_index >= len(blocks):
+            return f"Invalid source_index. Document has {len(blocks)} blocks."
+
+        source_block = blocks[source_index]
+        
+        # Deep copy the XML element
+        new_element = copy.deepcopy(source_block._element)
+        
+        # Insert or append
+        if target_index is not None and 0 <= target_index < len(blocks):
+            target_block = blocks[target_index]
+            target_block._element.addprevious(new_element)
+        else:
+            doc._body._element.append(new_element)
+            
+        # If it's a table and table_data is provided, populate it
+        if isinstance(source_block, Table) and table_data:
+            new_table = Table(new_element, doc)
+            def set_cell_preserve(cell, text):
+                if len(cell.paragraphs) > 0:
+                    while len(cell.paragraphs) > 1:
+                        p = cell.paragraphs[-1]._element
+                        p.getparent().remove(p)
+                    p = cell.paragraphs[0]
+                    if len(p.runs) > 0:
+                        for r in p.runs[1:]:
+                            r._element.getparent().remove(r._element)
+                        p.runs[0].text = text
+                    else:
+                        p.add_run(text)
+                else:
+                    cell.text = text
+
+            for i, row_data in enumerate(table_data):
+                if i >= len(new_table.rows):
+                    break
+                for j, cell_text in enumerate(row_data):
+                    if j >= len(new_table.columns):
+                        break
+                    set_cell_preserve(new_table.cell(i, j), str(cell_text))
+
+        doc.save(filename)
+        return f"Successfully duplicated block {source_index}."
+    except Exception as e:
+        return f"Failed to duplicate block: {str(e)}"

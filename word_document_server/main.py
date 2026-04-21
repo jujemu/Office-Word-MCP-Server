@@ -1,3 +1,4 @@
+from typing import List, Optional
 """
 Main entry point for the Word Document MCP Server.
 Acts as the central controller for the MCP server that handles Word document operations.
@@ -249,7 +250,7 @@ def register_tools():
             title="Add Table",
         ),
     )
-    def add_table(filename: str, rows: int, cols: int, data: list[list[str]] = None):
+    def add_table(filename: str, rows: int, cols: int, data: List[List[str]] = None):
         """Add a table to a Word document."""
         return content_tools.add_table(filename, rows, cols, data)
     
@@ -258,7 +259,7 @@ def register_tools():
             title="Add Row to Table",
         ),
     )
-    def add_row_to_table(filename: str, table_index: int, data: list[str], row_index: int = None):
+    def add_row_to_table(filename: str, table_index: int, data: List[str], row_index: int = None):
         """Add a row to an existing table in a Word document.
         
         Args:
@@ -274,7 +275,7 @@ def register_tools():
             title="Add Column to Table",
         ),
     )
-    def add_column_to_table(filename: str, table_index: int, data: list[str], col_index: int = None):
+    def add_column_to_table(filename: str, table_index: int, data: List[str], col_index: int = None):
         """Add a column to an existing table in a Word document.
         
         Args:
@@ -841,7 +842,7 @@ def register_tools():
         ),
     )
     def modify_document_block(filename: str, index: int, paragraph_text: str = None, 
-                              table_data: list[list[str]] = None, style: str = None, 
+                              table_data: List[List[str]] = None, style: str = None, 
                               font_name: str = None, font_size: int = None, 
                               bold: bool = None, italic: bool = None, color: str = None):
         """Modify the block at the specified absolute index (text/data and formatting)."""
@@ -850,7 +851,25 @@ def register_tools():
             font_name, font_size, bold, italic, color
         )
 
+
+    @mcp.tool(
+        annotations=ToolAnnotations(
+            title="Duplicate Document Block",
+        ),
+    )
+    def duplicate_document_block(filename: str, source_index: int, target_index: int = None, table_data: List[List[str]] = None):
+        """Duplicate a document block (paragraph or table) and optionally fill it with new data.
+        
+        Args:
+            filename: Path to the Word document
+            source_index: Index of the block to duplicate
+            target_index: Index where to insert the duplicated block. If None, appends to the end.
+            table_data: If the block is a table, a 2D array of strings to fill the duplicated table.
+        """
+        return content_tools.duplicate_document_block(filename, source_index, target_index, table_data)
+
 def run_server():
+
     """Run the Word Document MCP Server with configurable transport."""
     # Get transport configuration
     config = get_transport_config()

@@ -15,7 +15,7 @@ from word_document_server.tools.document_tools import (
 # Content tools
 from word_document_server.tools.content_tools import (
     add_heading, add_paragraph, add_table, add_picture,
-    add_page_break, add_table_of_contents, delete_paragraph,
+    add_page_break, add_table_of_contents, delete_paragraph, duplicate_document_block,
     search_and_replace, add_row_to_table, add_column_to_table,
     merge_table_row_cells, merge_table_column_cells,
     remove_row_from_table, remove_column_from_table,
